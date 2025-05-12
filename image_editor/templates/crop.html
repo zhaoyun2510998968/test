@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>图像裁剪</title>
+    <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" rel="stylesheet"/>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            text-align: center;
+            padding: 80px;
+        }
+
+        h1 {
+            font-size: 3em;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        h2, h3 {
+            font-size: 2em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        a {
+            text-decoration: none;
+            color: #3498db;
+            font-size: 1.2em;
+        }
+
+        .file-upload {
+            margin: 30px 0;
+        }
+
+        .custom-upload {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 10px;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .custom-upload:hover {
+            background-color: #2980b9;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        #imageContainer {
+            max-width: 600px;
+            margin: 0 auto 30px;
+        }
+
+        img {
+            max-width: 100%;
+            border-radius: 10px;
+        }
+
+        #croppedImage,
+        #resizedPreviewImage {
+            display: block;
+            margin: 30px auto;
+            border-radius: 10px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: white;
+            font-size: 1.5em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        label {
+            font-size: 1.2em;
+        }
+
+        input[type="range"] {
+            width: 220px;
+        }
+
+        #resizeCanvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>图像裁剪</h1>
+    <a href="/">返回首页</a>
+
+    <div class="file-upload">
+        <label for="fileInput" class="custom-upload">选择图片</label>
+        <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div id="imageContainer">
+        <img id="image" style="display:none;">
+    </div>
+
+    <button onclick="cropImage()">裁剪</button>
+
+    <h3>裁剪后图像：</h3>
+    <div id="croppedContainer">
+        <img id="croppedImage" src="" style="display: none;" />
+    </div>
+
+    <h3>图像缩放(10%~200%)：</h3>
+    <div class="controls">
+        <label for="scaleRange">缩放比例: <span id="scaleValue">100%</span></label>
+        <input type="range" id="scaleRange" min="10" max="200" value="100">
+        <button id="saveButton" onclick="saveResizedImage()">保存调整后图像</button>
+    </div>
+
+    <canvas id="resizeCanvas"></canvas>
+    <img id="resizedPreviewImage" />
+
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
+    <script>
+        let cropper;
+        const image = document.getElementById('image');
+        const croppedImageObj = new Image();
+        const scaleSlider = document.getElementById('scaleRange');
+        const scaleValueText = document.getElementById('scaleValue');
+        const resizedPreview = document.getElementById('resizedPreviewImage');
+        const canvas = document.getElementById('resizeCanvas');
+        const ctx = canvas.getContext('2d');
+
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                image.src = event.target.result;
+                image.style.display = 'block';
+
+                if (cropper) {
+                    cropper.destroy();
+                }
+                cropper = new Cropper(image, {
+                    aspectRatio: NaN,
+                    viewMode: 1,
+                    dragMode: 'move',
+                    autoCropArea: 0.5
+                });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function cropImage() {
+            const cropData = cropper.getData(true);
+            const canvas = cropper.getCroppedCanvas({
+                width: Math.round(cropData.width),
+                height: Math.round(cropData.height)
+            });
+
+            canvas.toBlob(function (blob) {
+                const reader = new FileReader();
+                reader.onloadend = function () {
+                    const base64data = reader.result;
+
+                    fetch('/crop_image', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ imageData: base64data })
+                    })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+
+                        const croppedImg = document.getElementById('croppedImage');
+                        croppedImg.src = url;
+                        croppedImg.style.display = 'block';
+
+                        croppedImageObj.onload = () => {
+                            drawResizedImage(parseInt(scaleSlider.value));
+                        };
+                        croppedImageObj.src = url;
+                        resizedPreview.style.display = 'block';
+                    });
+                };
+                reader.readAsDataURL(blob);
+            }, 'image/png');
+        }
+
+        scaleSlider.addEventListener('input', function () {
+            const scale = parseInt(this.value);
+            scaleValueText.textContent = `${scale}%`;
+            drawResizedImage(scale);
+        });
+
+        function drawResizedImage(scalePercent) {
+            if (!croppedImageObj.src) return;
+
+            const scale = scalePercent / 100;
+            const newWidth = croppedImageObj.width * scale;
+            const newHeight = croppedImageObj.height * scale;
+
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+
+            ctx.clearRect(0, 0, newWidth, newHeight);
+            ctx.drawImage(croppedImageObj, 0, 0, newWidth, newHeight);
+
+            const dataUrl = canvas.toDataURL('image/png');
+            resizedPreview.src = dataUrl;
+        }
+
+        function saveResizedImage() {
+            if (!resizedPreview.src) {
+                alert("请先调整图像大小！");
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.href = resizedPreview.src;
+            link.download = 'resized-image.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>风格迁移选择</title>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            text-align: center;
+            padding: 80px;
+        }
+
+        h1 {
+            font-size: 3em;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        p {
+            font-size: 1.8em;
+            margin-bottom: 40px;
+        }
+
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 18px 36px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-size: 1.5em;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <h1>选择风格迁移方式</h1>
+    <div class="button-container">
+        <a href="/use_built_in_style" class="btn">内置风格迁移</a>
+        <a href="/upload_custom_style" class="btn">个性化风格迁移</a>
+    </div>
+</body>
+</html>

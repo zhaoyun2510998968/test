@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>风格迁移 - 选择内置风格</title>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            text-align: center;
+            padding: 80px;
+        }
+
+        h1 {
+            font-size: 3em;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+
+        .btn, .custom-upload {
+            display: inline-block;
+            padding: 18px 36px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .btn:hover, .custom-upload:hover {
+            background-color: #2980b9;
+        }
+
+        .back-link {
+            font-size: 1.2em;
+            color: #3498db;
+            text-decoration: none;
+            margin-bottom: 40px;
+            display: inline-block;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .image-preview {
+            max-width: 800px;
+            max-height: 800px;
+            width: auto;
+            height: auto;
+            margin: 20px auto 0;
+            display: block;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .image-group {
+            margin-bottom: 40px;
+        }
+
+        select {
+            padding: 12px 20px;
+            font-size: 1.2em;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            width: 200px;
+            text-align: center;
+            text-align-last: center;
+            background-color: white;
+        }
+
+        .upload-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .upload-container input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>风格迁移 - 选择内置风格</h1>
+    <a href="/" class="back-link">返回首页</a>
+
+    <div class="image-group">
+        <h2>选择风格</h2>
+        <select id="styleSelect">
+            <option value="vangogh">梵高</option>
+            <option value="picasso">毕加索</option>
+            <option value="cyberpunk">赛博朋克</option>
+            <option value="ink">水墨</option>
+            <option value="sketch">素描</option>
+        </select>
+    </div>
+
+    <div class="image-group">
+        <h2>上传内容图</h2>
+        <div class="upload-container">
+            <label for="contentInput" class="custom-upload">选择图片</label>
+            <input type="file" id="contentInput" accept="image/*">
+        </div>
+        <img id="contentPreview" class="image-preview">
+    </div>
+
+    <button class="btn" onclick="submitStyleTransfer()">开始风格迁移</button>
+
+    <div class="image-group">
+        <h2>结果图像</h2>
+        <img id="resultImage" class="image-preview">
+        <br>
+        <a id="downloadBtn" class="btn" style="display: none;" download="stylized_result.png">保存图片</a>
+    </div>
+
+    <script>
+        let contentBase64 = "";
+        let selectedStyle = "vangogh";
+
+        document.getElementById('contentInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    contentBase64 = event.target.result;
+                    const contentImg = document.getElementById('contentPreview');
+                    contentImg.src = contentBase64;
+                    contentImg.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('styleSelect').addEventListener('change', function (e) {
+            selectedStyle = e.target.value;
+        });
+
+        function submitStyleTransfer() {
+            if (!contentBase64) {
+                alert("请上传内容图！");
+                return;
+            }
+
+            fetch('/style_transfer_use', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contentImage: contentBase64,
+                    selectedStyle: selectedStyle
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("风格迁移失败！");
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const resultURL = URL.createObjectURL(blob);
+                const contentImg = document.getElementById('contentPreview');
+                const resultImg = document.getElementById('resultImage');
+
+                resultImg.src = resultURL;
+                resultImg.style.display = 'block';
+
+                // 同步尺寸
+                resultImg.style.width = contentImg.clientWidth + 'px';
+                resultImg.style.height = contentImg.clientHeight + 'px';
+
+                // 显示保存按钮并绑定链接
+                const downloadBtn = document.getElementById('downloadBtn');
+                downloadBtn.href = resultURL;
+                downloadBtn.style.display = 'inline-block';
+            })
+            .catch(error => {
+                console.error("风格迁移错误：", error);
+                alert("风格迁移处理失败！");
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>图像滤镜</title>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            text-align: center;
+            padding: 80px;
+        }
+
+        h1 {
+            font-size: 3em;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        h3 {
+            font-size: 2em;
+            margin-top: 40px;
+        }
+
+        a {
+            text-decoration: none;
+            color: #3498db;
+            font-size: 1.3em;
+        }
+
+        .main-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .upload-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 30px 0;
+        }
+
+        .custom-upload {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 10px;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .custom-upload:hover {
+            background-color: #2980b9;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .button-group button,
+        #saveButton {
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .button-group button:hover,
+        #saveButton:hover {
+            background-color: #2980b9;
+        }
+
+        .slider-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .slider-group {
+            margin-top: 10px;
+        }
+
+        .slider-label {
+            font-size: 1.2em;
+        }
+
+        .slider {
+            width: 100%;
+            max-width: 300px;
+            margin-top: 10px;
+        }
+
+        #saveButton {
+            display: none;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>图像滤镜</h1>
+    <a href="/">返回首页</a>
+
+    <div class="main-container">
+
+        <!-- 上传图片 -->
+        <div class="upload-container">
+            <label for="fileInput" class="custom-upload">选择图片</label>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <!-- 原图 -->
+        <img id="originalImage" style="display:none;">
+
+        <!-- 滤镜按钮 -->
+        <div class="button-group">
+            <button onclick="applyFilter('grayscale')">灰度滤镜</button>
+            <button onclick="applyFilter('invert')">反转滤镜</button>
+            <button onclick="applyFilter('blur')">模糊滤镜</button>
+            <button onclick="showSlider('brightness')">亮度调整</button>
+            <button onclick="showSlider('saturation')">饱和度调整</button>
+        </div>
+
+        <!-- 滑块：亮度 -->
+        <div class="slider-container" id="brightnessSliderContainer">
+            <div class="slider-group">
+                <label class="slider-label">亮度调整</label><br>
+                <input type="range" id="brightnessSlider" class="slider" min="0.5" max="2.0" step="0.1" value="1" oninput="updateFilter()">
+            </div>
+        </div>
+
+        <!-- 滑块：饱和度 -->
+        <div class="slider-container" id="saturationSliderContainer">
+            <div class="slider-group">
+                <label class="slider-label">饱和度调整</label><br>
+                <input type="range" id="saturationSlider" class="slider" min="0.5" max="2.0" step="0.1" value="1" oninput="updateFilter()">
+            </div>
+        </div>
+
+        <!-- 处理后图像 -->
+        <h3>处理后图像：</h3>
+        <img id="filteredImage" src="" />
+
+        <button id="saveButton" onclick="saveImage()">保存图片</button>
+    </div>
+
+    <script>
+        let originalBase64 = "";
+        let brightnessValue = 1;
+        let saturationValue = 1;
+
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                originalBase64 = event.target.result;
+                const originalImage = document.getElementById('originalImage');
+                originalImage.src = originalBase64;
+                originalImage.style.display = 'block';
+                applyFilter('initial');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function showSlider(type) {
+            document.getElementById('brightnessSliderContainer').style.display = type === 'brightness' ? 'block' : 'none';
+            document.getElementById('saturationSliderContainer').style.display = type === 'saturation' ? 'block' : 'none';
+        }
+
+        function applyFilter(type) {
+            if (!originalBase64) {
+                alert("请先上传图片！");
+                return;
+            }
+
+            brightnessValue = document.getElementById('brightnessSlider').value;
+            saturationValue = document.getElementById('saturationSlider').value;
+
+            fetch('/apply_filter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    imageData: originalBase64,
+                    filterType: type,
+                    brightness: brightnessValue,
+                    saturation: saturationValue
+                })
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                document.getElementById('filteredImage').src = url;
+                document.getElementById('saveButton').style.display = 'inline-block';
+            })
+            .catch(error => {
+                console.error("滤镜应用失败：", error);
+                alert("滤镜应用失败！");
+            });
+        }
+
+        function updateFilter() {
+            applyFilter('initial');
+        }
+
+        function saveImage() {
+            const filteredImage = document.getElementById('filteredImage');
+            if (!filteredImage.src) {
+                alert("没有处理后的图片！");
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.href = filteredImage.src;
+            link.download = 'filtered_image.png';
+            link.click();
+        }
+    </script>
+</body>
+</html>
